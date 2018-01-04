@@ -19,3 +19,11 @@ type StopSign interface {
 	//获取摘要信息.其中应该包含所有的停止信号处理记录
 	Summary() string
 }
+
+type myStopSign struct {
+	//
+	signed bool
+}
+
+
+
