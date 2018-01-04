@@ -1,5 +1,10 @@
 package middleware
 
+import (
+	"sync"
+	"fmt"
+)
+
 //停止信号的接口类型
 type StopSign interface {
 	//置位停止信号,相当于发出停止信号
@@ -21,9 +26,76 @@ type StopSign interface {
 }
 
 type myStopSign struct {
-	//
+	//表示信号是否已经发出的标志位(true表示停止)
 	signed bool
+	//处理计数的字典
+	dealCountMap map[string]uint32
+	//读写锁
+	rwmutex sync.RWMutex
 }
 
+//创建停止信号
+func NewStopSign() StopSign {
+	ss := &myStopSign{
+		dealCountMap: make(map[string]uint32),
+	}
+	return ss
+}
 
+func (ss *myStopSign) Sign() bool {
+	ss.rwmutex.Lock()
+	defer ss.rwmutex.Unlock()
+	if ss.signed {
+		return false
+	}
+	ss.signed = true
+	return true
+}
 
+func (ss *myStopSign) Signed() bool {
+	return ss.signed
+}
+
+func (ss *myStopSign) Deal(code string) {
+	ss.rwmutex.Lock()
+	defer ss.rwmutex.Unlock()
+	//停止信号还未被发出,忽略后续操作.保证计数的准确性
+	if !ss.signed {
+		return
+	}
+	if _, ok := ss.dealCountMap[code]; !ok {
+		ss.dealCountMap[code] = 1
+	} else {
+		ss.dealCountMap[code] += 1
+	}
+}
+
+func (ss *myStopSign) Reset() {
+	ss.rwmutex.Lock()
+	defer ss.rwmutex.Unlock()
+	ss.signed = false
+	ss.dealCountMap = make(map[string]uint32)
+}
+
+func (ss *myStopSign) DealCount(code string) uint32 {
+	ss.rwmutex.Lock()
+	defer ss.rwmutex.Unlock()
+	return ss.dealCountMap[code]
+}
+
+func (ss *myStopSign) DealTotal() uint32 {
+	ss.rwmutex.Lock()
+	defer ss.rwmutex.Unlock()
+	var total uint32
+	for _, v := range ss.dealCountMap {
+		total += v
+	}
+	return total
+}
+
+func (ss *myStopSign) Summary() string {
+	if ss.signed {
+		return fmt.Sprintf("signed:true,dealCount:%v", ss.dealCountMap)
+	}
+	return "signed:false"
+}
