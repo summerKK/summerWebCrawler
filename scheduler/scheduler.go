@@ -4,6 +4,13 @@ import (
 	"summerWebCrawler/analyzer"
 	"summerWebCrawler/itempipeline"
 	"net/http"
+	"summerWebCrawler/middleware"
+	"summerWebCrawler/downloadder"
+	"fmt"
+	"errors"
+	"summerWebCrawler/logging"
+	"summerWebCrawler/base"
+	"sync/atomic"
 )
 
 //调度器的接口类型
@@ -47,3 +54,92 @@ type SchedSummary interface {
 
 //被用来生成http客户端的函数类型
 type GenHttpClient func() *http.Client
+
+//调度器的实现
+type myScheduler struct {
+	//池的尺寸
+	poolSize uint32
+	//通道的长度(也即容量)
+	channelLen uint
+	//爬取的最大深度,首次氢气的深度为0
+	crawlDepth uint32
+	//主域名
+	primaryDomain string
+
+	//通道管理器
+	chanman middleware.ChannelManager
+	//停止信号
+	stopSign middleware.StopSign
+	//网页下载器池
+	dlPool downloadder.PageDownloaderPool
+	//分析器池
+	analyzerPool analyzer.AnalyzerPool
+	//条目处理管道
+	itemPipeline itempipeline.ItemPipeline
+
+	//运行标记,0表示未运行,1表示已运行,2表示已停止
+	running uint32
+	//请求缓存
+	reqCache requestCache
+	//已请求的URL的字典
+	urlMap map[string]bool
+}
+
+// 日志记录器。
+var logger logging.Logger = base.NewLogger()
+
+//创建调度器
+func NewScheduler() Scheduler {
+	return &myScheduler{}
+}
+
+func (scheduler *myScheduler) Start(channelLen uint,
+	poolSize uint32,
+	crawlDepth uint32,
+	httpClientGenerator GenHttpClient,
+	respParsers []analyzer.ParseResponse,
+	itemProcessors []itempipeline.ProcessItem,
+	firstHttpReq *http.Request) (err error) {
+	//初始化调度器的各个字段以及开启调度器的过程中有运行时的panic被抛出
+	//调度器能够及时地恢复它并记录下相应的日志
+	defer func() {
+		if p := recover(); p != nil {
+			errMsg := fmt.Sprintf("Fatal Scheduler Error:%s\n", p)
+			logger.Fatal(errMsg)
+			err = errors.New(errMsg)
+		}
+	}()
+	//检查running字段.查看调度器的状态
+	if atomic.LoadUint32(&scheduler.running) == 1 {
+		return errors.New("The scheduler has been started!\n")
+	}
+	//更改调度器状态
+	atomic.StoreUint32(&scheduler.running, 1)
+
+	if channelLen == 0 {
+		return errors.New("The channel max length (capacity) can not be 0!\n")
+	}
+	scheduler.channelLen = channelLen
+	if poolSize == 0 {
+		return errors.New("The pool size can not be 0!\n")
+	}
+	scheduler.poolSize = poolSize
+	scheduler.crawlDepth = crawlDepth
+	scheduler.chanman = generateChannelManager(scheduler.channelLen)
+	if httpClientGenerator == nil {
+		return errors.New("The http client generator list is invalid!")
+	}
+	dlPool, err := generatePageDownloaderPool(scheduler.poolSize, httpClientGenerator)
+	if err != nil {
+		errMsg := fmt.Sprintf("Occur error when get page downloader pool:%s\n", err)
+		return errors.New(errMsg)
+	}
+	scheduler.dlPool = dlPool
+	analyzerPool, err := generateAnalyzerPool(scheduler.poolSize)
+	if err != nil {
+		errMsg := fmt.Sprintf("Occur error when get analyzer pool:%s\n", err)
+		return errors.New(errMsg)
+	}
+	scheduler.analyzerPool = analyzerPool
+	return 
+}
