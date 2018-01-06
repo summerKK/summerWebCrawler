@@ -50,7 +50,7 @@ func NewPool(total uint32, entityType reflect.Type, genEntity func() Entity) (Po
 	}
 	//初始化container字段
 	//通常情况下,我们应该在初始化一个池的时候就把它填满.
-	//尤其是在实体的创建成本很低火需要提前准备以尽量减少后续操作的响应时间的情况下
+	//尤其是在实体的创建成本很低并且需要提前准备以尽量减少后续操作的响应时间的情况下
 	size := int(total)
 	container := make(chan Entity, size)
 	idContainer := make(map[uint32]bool)
