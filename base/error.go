@@ -30,11 +30,11 @@ type ErrorType string
 const (
 	DOWNLOADER_ERROR     ErrorType = "Downloader Error"
 	ANALYZER_ERROR       ErrorType = "Analyzer Error"
-	item_processor_error ErrorType = "Item Processor Error"
+	ITEM_PROCESSOR_ERROR ErrorType = "Item Processor Error"
 )
 
 //创建一个新的爬虫错误
-func NewCrawlererror(errType ErrorType, errMsg string) CrawlerError {
+func NewCrawlerError(errType ErrorType, errMsg string) CrawlerError {
 	return &myCrawlerError{errType: errType, errMsg: errMsg}
 }
 
