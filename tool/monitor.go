@@ -1,7 +1,7 @@
 package tool
 
 import (
-	"summerWebCrawler/scheduler"
+	sched "summerWebCrawler/scheduler"
 	"time"
 	"errors"
 	"fmt"
@@ -20,9 +20,9 @@ type Record func(level byte, content string)
 //参数detailSummary被用来表示是否需要详细的摘要信息
 //参数record代表日志记录函数
 //当监控结束之后,该方法会向作为唯一返回值的通道发送一个代表了空闲状态检查次数的数值
-func Monitoring(scheduler scheduler.Scheduler, intervalNs time.Duration, maxIdleCount uint, autoStop bool, detailSummary bool, record Record) <-chan uint64 {
+func Monitoring(scheduler sched.Scheduler, intervalNs time.Duration, maxIdleCount uint, autoStop bool, detailSummary bool, record Record) <-chan uint64 {
 	if scheduler == nil {
-		panic(errors.New("The scheduler is invalid!"))
+		panic(errors.New("The sched is invalid!"))
 	}
 	//防止过小的参数值对爬取流程的影响
 	if intervalNs < time.Millisecond {
@@ -50,14 +50,14 @@ var (
 		"Scheduler:\n%s" +
 		"Escaped time:%s\n"
 	//已达到最大空闲计数的消息模板
-	msgReachMaxIdleCount string = "The scheduler has been idle for a period of time" +
+	msgReachMaxIdleCount string = "The sched has been idle for a period of time" +
 		" (about %s)." +
 		" Now consider what stop it."
 	// 停止调度器的消息模板。
-	msgStopScheduler = "Stop scheduler...%s."
+	msgStopScheduler = "Stop sched...%s."
 )
 
-func reportError(scheduler scheduler.Scheduler, record Record, stopNotifier <-chan byte) {
+func reportError(scheduler sched.Scheduler, record Record, stopNotifier <-chan byte) {
 	go func() {
 		//等待调度器开启
 		waitForSchedulerStart(scheduler)
@@ -83,21 +83,21 @@ func reportError(scheduler scheduler.Scheduler, record Record, stopNotifier <-ch
 }
 
 //等待调度器开启
-func waitForSchedulerStart(scheduler scheduler.Scheduler) {
+func waitForSchedulerStart(scheduler sched.Scheduler) {
 	for !scheduler.Running() {
 		time.Sleep(time.Microsecond)
 	}
 }
 
 //记录摘要信息
-func recordSummary(scheduler scheduler.Scheduler, detailSummary bool, record Record, stopNotifier <-chan byte) {
+func recordSummary(scheduler sched.Scheduler, detailSummary bool, record Record, stopNotifier <-chan byte) {
 	go func() {
 		//等待调度器开启
 		waitForSchedulerStart(scheduler)
 
 		var recordCount uint64 = 1
 		startTime := time.Now()
-		var prevSchedSummary scheduler.SchedSummary
+		var prevSchedSummary sched.SchedSummary
 		var prevNumGoroutine int
 
 		for {
@@ -139,13 +139,17 @@ func recordSummary(scheduler scheduler.Scheduler, detailSummary bool, record Rec
 	}()
 }
 
-func checkStatus(scheduler scheduler.Scheduler, intervalNs time.Duration, maxIdleCount uint, autoStop bool, checkCountChan chan<- uint64, record Record, stopNotifier chan<- byte) {
+func checkStatus(scheduler sched.Scheduler, intervalNs time.Duration, maxIdleCount uint, autoStop bool, checkCountChan chan<- uint64, record Record, stopNotifier chan<- byte) {
 	var checkCount uint64
 	go func() {
 		defer func() {
 			stopNotifier <- 1
 			stopNotifier <- 2
 		}()
+
+		//等待调度器开启
+		waitForSchedulerStart(scheduler)
+
 		var idleCount uint
 		var firstIdleTime time.Time
 		for {

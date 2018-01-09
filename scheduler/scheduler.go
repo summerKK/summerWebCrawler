@@ -1,11 +1,11 @@
 package scheduler
 
 import (
-	"summerWebCrawler/analyzer"
-	"summerWebCrawler/itempipeline"
+	analy "summerWebCrawler/analyzer"
+	pipeline "summerWebCrawler/itempipeline"
 	"net/http"
-	"summerWebCrawler/middleware"
-	"summerWebCrawler/downloadder"
+	middle "summerWebCrawler/middleware"
+	download "summerWebCrawler/downloadder"
 	"fmt"
 	"errors"
 	"summerWebCrawler/logging"
@@ -29,8 +29,8 @@ type Scheduler interface {
 		baseArgs base.PoolBaseArgs,
 		crawlDepth uint32,
 		httpClientGenerator GenHttpClient,
-		respParsers []analyzer.ParseResponse,
-		itemProcessors []itempipeline.ProcessItem,
+		respParsers []analy.ParseResponse,
+		itemProcessors []pipeline.ProcessItem,
 		firstHttpReq *http.Request) (err error)
 
 	//调用该方法会停止调度器的运行.所有处理模块执行的流程会被中止
@@ -60,15 +60,15 @@ type myScheduler struct {
 	primaryDomain string
 
 	//通道管理器
-	chanman middleware.ChannelManager
+	chanman middle.ChannelManager
 	//停止信号
-	stopSign middleware.StopSign
+	stopSign middle.StopSign
 	//网页下载器池
-	dlPool downloadder.PageDownloaderPool
+	dlPool download.PageDownloaderPool
 	//分析器池
-	analyzerPool analyzer.AnalyzerPool
+	analyzerPool analy.AnalyzerPool
 	//条目处理管道
-	itemPipeline itempipeline.ItemPipeline
+	itemPipeline pipeline.ItemPipeline
 
 	//运行标记,0表示未运行,1表示已运行,2表示已停止
 	running uint32
@@ -83,7 +83,7 @@ var logger logging.Logger = base.NewLogger()
 
 const (
 	DOWNLOADER_CODE   = "downloader"
-	ANALYZER_CODE     = "analyzer"
+	ANALYZER_CODE     = "analy"
 	ITEMPIPELINE_CODE = "item_pipeline"
 	SCHEDULER_CODE    = "scheduler"
 )
@@ -97,8 +97,8 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 	poolSizeArgs base.PoolBaseArgs,
 	crawlDepth uint32,
 	httpClientGenerator GenHttpClient,
-	respParsers []analyzer.ParseResponse,
-	itemProcessors []itempipeline.ProcessItem,
+	respParsers []analy.ParseResponse,
+	itemProcessors []pipeline.ProcessItem,
 	firstHttpReq *http.Request) (err error) {
 	//初始化调度器的各个字段以及开启调度器的过程中有运行时的panic被抛出
 	//调度器能够及时地恢复它并记录下相应的日志
@@ -141,7 +141,7 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 	scheduler.dlPool = dlPool
 	analyzerPool, err := generateAnalyzerPool(scheduler.poolSizeArgs.AnalyzerPoolSize())
 	if err != nil {
-		errMsg := fmt.Sprintf("Occur error when get analyzer pool:%s\n", err)
+		errMsg := fmt.Sprintf("Occur error when get analy pool:%s\n", err)
 		return errors.New(errMsg)
 	}
 	scheduler.analyzerPool = analyzerPool
@@ -158,7 +158,7 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 	scheduler.itemPipeline = generateItemPipeline(itemProcessors)
 
 	if scheduler.stopSign == nil {
-		scheduler.stopSign = middleware.NewStopSign()
+		scheduler.stopSign = middle.NewStopSign()
 	} else {
 		scheduler.stopSign.Reset()
 	}
@@ -209,7 +209,7 @@ func (scheduler *myScheduler) getReqChan() chan base.Request {
 }
 
 //激活分析器
-func (scheduler *myScheduler) activateAnalyzers(respParsers []analyzer.ParseResponse) {
+func (scheduler *myScheduler) activateAnalyzers(respParsers []analy.ParseResponse) {
 	go func() {
 		for {
 			resp, ok := <-scheduler.getRespChan()
@@ -328,7 +328,7 @@ func (scheduler *myScheduler) sendItem(item base.Item, code string) bool {
 	return true
 }
 
-func (scheduler *myScheduler) analyze(responses []analyzer.ParseResponse, response base.Response) {
+func (scheduler *myScheduler) analyze(responses []analy.ParseResponse, response base.Response) {
 	defer func() {
 		if p := recover(); p != nil {
 			errMsg := fmt.Sprintf("Fatal Analysis Error:%s\n", p)
@@ -485,7 +485,7 @@ func (scheduler *myScheduler) Running() bool {
 }
 
 func (scheduler *myScheduler) ErrorChan() <-chan error {
-	if scheduler.chanman.Status() != middleware.CHANNEL_MANAGER_STATUS_INITIALIZED {
+	if scheduler.chanman.Status() != middle.CHANNEL_MANAGER_STATUS_INITIALIZED {
 		return nil
 	}
 	return scheduler.getErrorChan()

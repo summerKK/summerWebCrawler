@@ -1,10 +1,10 @@
 package scheduler
 
 import (
-	"summerWebCrawler/analyzer"
-	"summerWebCrawler/middleware"
-	"summerWebCrawler/downloadder"
-	"summerWebCrawler/itempipeline"
+	analy "summerWebCrawler/analyzer"
+	middle "summerWebCrawler/middleware"
+	download "summerWebCrawler/downloadder"
+	pipe "summerWebCrawler/itempipeline"
 	"regexp"
 	"strings"
 	"errors"
@@ -35,11 +35,11 @@ var regexpForDomains = []*regexp.Regexp{
 	regexp.MustCompile(`\.\w{2}$`),
 }
 
-func generateAnalyzerPool(poolSize uint32) (analyzer.AnalyzerPool, error) {
-	analyzer, err := analyzer.NewAnalyzerPool(
+func generateAnalyzerPool(poolSize uint32) (analy.AnalyzerPool, error) {
+	analyzer, err := analy.NewAnalyzerPool(
 		poolSize,
-		func() analyzer.Analyzer {
-			return analyzer.NewAnalyzer()
+		func() analy.Analyzer {
+			return analy.NewAnalyzer()
 		},
 	)
 	if err != nil {
@@ -48,11 +48,11 @@ func generateAnalyzerPool(poolSize uint32) (analyzer.AnalyzerPool, error) {
 	return analyzer, nil
 }
 
-func generatePageDownloaderPool(poolSize uint32, client GenHttpClient) (downloadder.PageDownloaderPool, error) {
-	downloader, err := downloadder.NewPageDownloaderPool(
+func generatePageDownloaderPool(poolSize uint32, client GenHttpClient) (download.PageDownloaderPool, error) {
+	downloader, err := download.NewPageDownloaderPool(
 		poolSize,
-		func() downloadder.PageDownloader {
-			return downloadder.NewPageDownloader(client())
+		func() download.PageDownloader {
+			return download.NewPageDownloader(client())
 		},
 	)
 	if err != nil {
@@ -62,12 +62,12 @@ func generatePageDownloaderPool(poolSize uint32, client GenHttpClient) (download
 
 }
 
-func generateChannelManager(channelArgs base.ChannelArgs) middleware.ChannelManager {
-	return middleware.NewChannelManager(channelArgs)
+func generateChannelManager(channelArgs base.ChannelArgs) middle.ChannelManager {
+	return middle.NewChannelManager(channelArgs)
 }
 
-func generateItemPipeline(items []itempipeline.ProcessItem) itempipeline.ItemPipeline {
-	return itempipeline.NewItemPipeline(items)
+func generateItemPipeline(items []pipe.ProcessItem) pipe.ItemPipeline {
+	return pipe.NewItemPipeline(items)
 }
 
 func getPrimaryDomain(host string) (string, error) {

@@ -13,7 +13,7 @@ import (
 	"summerWebCrawler/analyzer"
 	"time"
 	"summerWebCrawler/itempipeline"
-	"summerWebCrawler/scheduler"
+	sched "summerWebCrawler/scheduler"
 	"summerWebCrawler/tool"
 )
 
@@ -25,7 +25,7 @@ var (
 func main() {
 
 	//创建调度器
-	scheduler := scheduler.NewScheduler()
+	scheduler := sched.NewScheduler()
 	//准备监控参数
 	intervalNs := 10 * time.Millisecond
 	maxIdleCount := uint(1000)
