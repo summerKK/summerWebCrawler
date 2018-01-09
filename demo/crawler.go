@@ -178,6 +178,6 @@ func record(level byte, content string) {
 	case 1:
 		logger.Warnln(content)
 	case 2:
-		logger.Infoln(content)
+		logger.Fatalln(content)
 	}
 }

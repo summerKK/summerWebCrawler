@@ -485,9 +485,11 @@ func (scheduler *myScheduler) Running() bool {
 }
 
 func (scheduler *myScheduler) ErrorChan() <-chan error {
+	//如果channel池还没有初始化返回nil
 	if scheduler.chanman.Status() != middle.CHANNEL_MANAGER_STATUS_INITIALIZED {
 		return nil
 	}
+	//获取错误通道,调度器和所有模块的错误都会发送到这个error chan
 	return scheduler.getErrorChan()
 }
 

@@ -16,11 +16,17 @@ type Record func(level byte, content string)
 //参数scheduler代表作为监控目标的调度器
 //参数intervalNs代表检查间隔时间.单位:纳秒
 //参数maxIdleCount 代表最大空闲计数
-//擦书autoStop被用来指示该方法是否在调度器空闲一段时间(即持续空闲时间,由intervalNs * maxIdleCount得出)之后自行停止调度器
+//参数autoStop被用来指示该方法是否在调度器空闲一段时间(即持续空闲时间,由intervalNs * maxIdleCount得出)之后自行停止调度器
 //参数detailSummary被用来表示是否需要详细的摘要信息
 //参数record代表日志记录函数
 //当监控结束之后,该方法会向作为唯一返回值的通道发送一个代表了空闲状态检查次数的数值
-func Monitoring(scheduler sched.Scheduler, intervalNs time.Duration, maxIdleCount uint, autoStop bool, detailSummary bool, record Record) <-chan uint64 {
+func Monitoring(scheduler sched.Scheduler,
+	intervalNs time.Duration,
+	maxIdleCount uint,
+	autoStop bool,
+	detailSummary bool,
+	record Record) <-chan uint64 {
+
 	if scheduler == nil {
 		panic(errors.New("The sched is invalid!"))
 	}
@@ -57,6 +63,7 @@ var (
 	msgStopScheduler = "Stop sched...%s."
 )
 
+//监听爬虫整个过程中出现的错误
 func reportError(scheduler sched.Scheduler, record Record, stopNotifier <-chan byte) {
 	go func() {
 		//等待调度器开启
@@ -68,10 +75,14 @@ func reportError(scheduler sched.Scheduler, record Record, stopNotifier <-chan b
 				return
 			default:
 			}
+			//获取并检查error chan是否有错误值产生,
+			//如果没有直接返回,如果存在直接上传到record函数进行报道(level值代表错误的严重性)
 			errorChan := scheduler.ErrorChan()
+			//返回nil代 chanManager还未初始化
 			if errorChan == nil {
 				return
 			}
+			//监听错误信息
 			err := <-errorChan
 			if err != nil {
 				errMsg := fmt.Sprintf("Error (received from error channel):%s", err)
