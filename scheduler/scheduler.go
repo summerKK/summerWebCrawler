@@ -25,8 +25,8 @@ type Scheduler interface {
 	//参数httpClicentGenerator代表的是被用来生成http客户端的函数
 	//参数respParsers的值应为需要被置入条目处理管道中的条目处理器的序列
 	//参数firstHttpReq即代表首次请求.调度器会以此为起点开始执行爬取流程
-	Start(channelLen uint,
-		poolSize uint32,
+	Start(args base.ChannelArgs,
+		baseArgs base.PoolBaseArgs,
 		crawlDepth uint32,
 		httpClientGenerator GenHttpClient,
 		respParsers []analyzer.ParseResponse,
@@ -51,9 +51,9 @@ type GenHttpClient func() *http.Client
 //调度器的实现
 type myScheduler struct {
 	//池的尺寸
-	poolSize uint32
+	poolSizeArgs base.PoolBaseArgs
 	//通道的长度(也即容量)
-	channelLen uint
+	channelArgs base.ChannelArgs
 	//爬取的最大深度,首次氢气的深度为0
 	crawlDepth uint32
 	//主域名
@@ -93,8 +93,8 @@ func NewScheduler() Scheduler {
 	return &myScheduler{}
 }
 
-func (scheduler *myScheduler) Start(channelLen uint,
-	poolSize uint32,
+func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
+	poolSizeArgs base.PoolBaseArgs,
 	crawlDepth uint32,
 	httpClientGenerator GenHttpClient,
 	respParsers []analyzer.ParseResponse,
@@ -116,26 +116,30 @@ func (scheduler *myScheduler) Start(channelLen uint,
 	//更改调度器状态
 	atomic.StoreUint32(&scheduler.running, 1)
 
-	if channelLen == 0 {
-		return errors.New("The channel max length (capacity) can not be 0!\n")
+	//检查channel的参数是否合法
+	if err := channelArgs.Check(); err != nil {
+		return err
 	}
-	scheduler.channelLen = channelLen
-	if poolSize == 0 {
-		return errors.New("The pool size can not be 0!\n")
+	scheduler.channelArgs = channelArgs
+
+	//检查资源池的参数是否合法
+	if err := poolSizeArgs.Check(); err != nil {
+		return err
 	}
-	scheduler.poolSize = poolSize
+	scheduler.poolSizeArgs = poolSizeArgs
+
 	scheduler.crawlDepth = crawlDepth
-	scheduler.chanman = generateChannelManager(scheduler.channelLen)
+	scheduler.chanman = generateChannelManager(scheduler.channelArgs)
 	if httpClientGenerator == nil {
 		return errors.New("The http client generator list is invalid!")
 	}
-	dlPool, err := generatePageDownloaderPool(scheduler.poolSize, httpClientGenerator)
+	dlPool, err := generatePageDownloaderPool(scheduler.poolSizeArgs.PageDownloaderPoolSize(), httpClientGenerator)
 	if err != nil {
 		errMsg := fmt.Sprintf("Occur error when get page downloader pool:%s\n", err)
 		return errors.New(errMsg)
 	}
 	scheduler.dlPool = dlPool
-	analyzerPool, err := generateAnalyzerPool(scheduler.poolSize)
+	analyzerPool, err := generateAnalyzerPool(scheduler.poolSizeArgs.AnalyzerPoolSize())
 	if err != nil {
 		errMsg := fmt.Sprintf("Occur error when get analyzer pool:%s\n", err)
 		return errors.New(errMsg)
@@ -159,6 +163,7 @@ func (scheduler *myScheduler) Start(channelLen uint,
 		scheduler.stopSign.Reset()
 	}
 
+	scheduler.reqCache = NewRequestCache()
 	scheduler.urlMap = make(map[string]bool)
 
 	scheduler.startDownloading()
@@ -502,5 +507,3 @@ func (scheduler *myScheduler) Idle() bool {
 func (scheduler *myScheduler) Summary(prefix string) SchedSummary {
 	return NewSchedSummary(scheduler, prefix)
 }
-
-

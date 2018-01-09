@@ -110,7 +110,6 @@ func (analyzer *myAnalyzer) Analyze(respParsers []ParseResponse, resp base.Respo
 				errorList = appendErrorList(errorList, pError)
 			}
 		}
-
-		return dataList, errorList
 	}
+	return dataList, errorList
 }

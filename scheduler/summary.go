@@ -3,6 +3,7 @@ package scheduler
 import (
 	"bytes"
 	"fmt"
+	"summerWebCrawler/base"
 )
 
 type SchedSummary interface {
@@ -19,10 +20,10 @@ type mySchedSummary struct {
 	prefix string
 	//运行标记
 	running uint32
-	//池大小
-	poolSize uint32
-	//通道总长度
-	channelLen uint
+	//池基本参数的容器
+	poolSizeArgs base.PoolBaseArgs
+	//通道参数的容器
+	channelArgs base.ChannelArgs
 	//爬取最大深度
 	crawlDepth uint32
 	//通道管理器的摘要信息
@@ -71,8 +72,8 @@ func NewSchedSummary(sched *myScheduler, prefix string) SchedSummary {
 	return &mySchedSummary{
 		prefix:              prefix,
 		running:             sched.running,
-		poolSize:            sched.poolSize,
-		channelLen:          sched.channelLen,
+		poolSizeArgs:        sched.poolSizeArgs,
+		channelArgs:         sched.channelArgs,
 		crawlDepth:          sched.crawlDepth,
 		chanmanSummary:      sched.chanman.Summary(),
 		reqCacheSummary:     sched.reqCache.summary(),
@@ -91,7 +92,8 @@ func NewSchedSummary(sched *myScheduler, prefix string) SchedSummary {
 func (ss *mySchedSummary) getSummary(detail bool) string {
 	prefix := ss.prefix
 	template := prefix + "Running: %v \n" +
-		prefix + "Channel length: %s \n" +
+		prefix + "Channel args: %s \n" +
+		prefix + "Pool base args: %s \n" +
 		prefix + "Crawl depth: %d \n" +
 		prefix + "Channels manager: %s \n" +
 		prefix + "Request cache: %s\n" +
@@ -104,8 +106,8 @@ func (ss *mySchedSummary) getSummary(detail bool) string {
 		func() bool {
 			return ss.running == 1
 		}(),
-		ss.poolSize,
-		ss.channelLen,
+		ss.channelArgs.String(),
+		ss.poolSizeArgs.String(),
 		ss.crawlDepth,
 		ss.chanmanSummary,
 		ss.reqCacheSummary,
@@ -140,8 +142,8 @@ func (ss *mySchedSummary) Same(other SchedSummary) bool {
 		return false
 	}
 	if ss.running != otherSs.running ||
-		ss.poolSize != otherSs.poolSize ||
-		ss.channelLen != otherSs.channelLen ||
+		ss.poolSizeArgs.String() != otherSs.poolSizeArgs.String() ||
+		ss.channelArgs.String() != otherSs.channelArgs.String() ||
 		ss.crawlDepth != otherSs.crawlDepth ||
 		ss.dlPoolLen != otherSs.dlPoolLen ||
 		ss.dlPoolCap != otherSs.dlPoolCap ||

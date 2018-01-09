@@ -9,6 +9,7 @@ import (
 	"strings"
 	"errors"
 	"fmt"
+	"summerWebCrawler/base"
 )
 
 var regexpForIp = regexp.MustCompile(`((?:(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d?\d))`)
@@ -61,8 +62,8 @@ func generatePageDownloaderPool(poolSize uint32, client GenHttpClient) (download
 
 }
 
-func generateChannelManager(channelLen uint) middleware.ChannelManager {
-	return middleware.NewChannelManager(channelLen)
+func generateChannelManager(channelArgs base.ChannelArgs) middleware.ChannelManager {
+	return middleware.NewChannelManager(channelArgs)
 }
 
 func generateItemPipeline(items []itempipeline.ProcessItem) itempipeline.ItemPipeline {
