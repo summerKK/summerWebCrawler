@@ -56,6 +56,8 @@ func (ss *myStopSign) Signed() bool {
 	return ss.signed
 }
 
+//处理停止信号
+//参数code应该代表停止信号处理方的代号.该代号会出现在停止信号的处理记录中
 func (ss *myStopSign) Deal(code string) {
 	ss.rwmutex.Lock()
 	defer ss.rwmutex.Unlock()
@@ -70,6 +72,7 @@ func (ss *myStopSign) Deal(code string) {
 	}
 }
 
+//重置停止信号
 func (ss *myStopSign) Reset() {
 	ss.rwmutex.Lock()
 	defer ss.rwmutex.Unlock()

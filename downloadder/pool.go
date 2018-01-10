@@ -33,10 +33,12 @@ type GenPageDownlaoder func() PageDownloader
 
 //创建网页下载器池
 func NewPageDownloaderPool(total uint32, gen GenPageDownlaoder) (PageDownloaderPool, error) {
+	//得出pagedownloaderPool支持的实体类型
 	eType := reflect.TypeOf(gen())
 	genEntity := func() middleware.Entity {
 		return gen()
 	}
+	//初始化网页下载器池
 	pool, err := middleware.NewPool(total, eType, genEntity)
 	if err != nil {
 		return nil, err
@@ -49,10 +51,12 @@ func NewPageDownloaderPool(total uint32, gen GenPageDownlaoder) (PageDownloaderP
 }
 
 func (dlPool *myDownloaderPool) Take() (PageDownloader, error) {
+	//从网页下载器池取出一个实体
 	entity, err := dlPool.pool.Take()
 	if err != nil {
 		return nil, err
 	}
+	//转换实体格式(存入的实体本来就是pageDownloader类型,只是实现了ID()方法.也是Entity类型)
 	dl, ok := entity.(PageDownloader)
 	if !ok {
 		errMsg := fmt.Sprintf("The type of entity is not %s\n", dlPool.etype)

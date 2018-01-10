@@ -33,6 +33,7 @@ func genDownloaderId() uint32 {
 //创建网页下载器
 func NewPageDownloader(client *http.Client) PageDownloader {
 	id := genDownloaderId()
+	//如果没有提供client,初始化一个
 	if client == nil {
 		client = &http.Client{}
 	}

@@ -18,7 +18,7 @@ type ItemPipeline interface {
 	//设置是否快速失败
 	SetFailFast(failFast bool)
 	//获得已发送丶已接受和已处理的条目的计数值
-	//更确切的说,作为结果只的切片总会有3个元素值.这三个值会分别代表前述的3个计数
+	//更确切的说,作为结果值的切片总会有3个元素值.这三个值会分别代表前述的3个计数
 	Count() []uint64
 	//获取正在被处理的条目的数量
 	ProcessingNumber() uint64
@@ -52,6 +52,7 @@ func NewItemPipeline(itemProcessors []ProcessItem) ItemPipeline {
 		panic(errors.New(fmt.Sprintln("Invalid item processor list!")))
 	}
 	innerItemProcessors := make([]ProcessItem, 0)
+	//过滤参数避免异常
 	for i, ip := range itemProcessors {
 		if ip == nil {
 			panic(errors.New(fmt.Sprintf("Invalid item processor[%d]!\n", i)))

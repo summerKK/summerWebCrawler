@@ -19,14 +19,14 @@ import (
 type Scheduler interface {
 	//启动调度器
 	//调用该方法会使调度器创建和初始化各个组件.在此之后,调度器会激活爬取流程的执行
-	//参数channelLen被用来指定数据传输通道的长度
-	//参数poolSize被用来设定网页下载池和分析器池的容量
+	//参数channelArgs被用来指定数据传输通道的长度
+	//参数poolbaseArgs被用来设定网页下载池和分析器池的容量
 	//参数crawlDepth代表了需要被爬取的网页的最大深度值,深度大于此值的网页会被忽略
 	//参数httpClicentGenerator代表的是被用来生成http客户端的函数
 	//参数respParsers的值应为需要被置入条目处理管道中的条目处理器的序列
 	//参数firstHttpReq即代表首次请求.调度器会以此为起点开始执行爬取流程
-	Start(args base.ChannelArgs,
-		baseArgs base.PoolBaseArgs,
+	Start(channelArgs base.ChannelArgs,
+		poolBaseArgs base.PoolBaseArgs,
 		crawlDepth uint32,
 		httpClientGenerator GenHttpClient,
 		respParsers []analy.ParseResponse,
@@ -129,16 +129,21 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 	scheduler.poolSizeArgs = poolSizeArgs
 
 	scheduler.crawlDepth = crawlDepth
+	//初始化channelManager.并对reqChan,respChan...赋值
 	scheduler.chanman = generateChannelManager(scheduler.channelArgs)
+
 	if httpClientGenerator == nil {
 		return errors.New("The http client generator list is invalid!")
 	}
+	//初始化网页下载器池
 	dlPool, err := generatePageDownloaderPool(scheduler.poolSizeArgs.PageDownloaderPoolSize(), httpClientGenerator)
 	if err != nil {
 		errMsg := fmt.Sprintf("Occur error when get page downloader pool:%s\n", err)
 		return errors.New(errMsg)
 	}
 	scheduler.dlPool = dlPool
+
+	//初始化分析器池
 	analyzerPool, err := generateAnalyzerPool(scheduler.poolSizeArgs.AnalyzerPoolSize())
 	if err != nil {
 		errMsg := fmt.Sprintf("Occur error when get analy pool:%s\n", err)
@@ -146,10 +151,11 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 	}
 	scheduler.analyzerPool = analyzerPool
 
+	//条目处理器
+	//itemProcessors是一个slice可以添加多个处理器处理数据
 	if itemProcessors == nil {
 		return errors.New("The item processor list is invalid!")
 	}
-
 	for i, ip := range itemProcessors {
 		if ip == nil {
 			return errors.New(fmt.Sprintf("The %dth item processor is invalid!", i))
@@ -157,6 +163,7 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 	}
 	scheduler.itemPipeline = generateItemPipeline(itemProcessors)
 
+	//初始化停止信号
 	if scheduler.stopSign == nil {
 		scheduler.stopSign = middle.NewStopSign()
 	} else {

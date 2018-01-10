@@ -33,6 +33,7 @@ type GenAnalyzer func() Analyzer
 func NewAnalyzerPool(total uint32, gen GenAnalyzer) (AnalyzerPool, error) {
 	//获取生成实体类型
 	eType := reflect.TypeOf(gen())
+	//池中的实体
 	genEntity := func() middleware.Entity {
 		return gen()
 	}

@@ -27,16 +27,20 @@ func NewIdGenertor() IdGenertor {
 }
 
 func (gen *cyclicIdGenertor) GetUint32() uint32 {
+	//这里要使用锁保证并发安全
 	gen.mutex.Lock()
 	defer gen.mutex.Unlock()
+	//判断Id是否已经是其类型所能表达的最大值
 	if gen.ended {
 		defer func() {
+			//改变状态
 			gen.ended = false
 		}()
+		//重置sn
 		gen.sn = 0
 		return gen.sn
 	}
-
+	//获取id
 	id := gen.sn
 	if id < math.MaxUint32 {
 		gen.sn++

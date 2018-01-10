@@ -101,10 +101,11 @@ func (pool *myPool) Return(entity Entity) error {
 		errMsg := fmt.Sprintf("The type of returning is not %s!\n", pool.etype)
 		return errors.New(errMsg)
 	}
-
+	//获取实体Id判断是否是池中的实体
 	entityId := entity.Id()
 	casResult := pool.compareAndSetForIDContainer(entityId, false, true)
 	if casResult == 1 {
+		// 1:代表成功,这时可以把实体放入容器中
 		pool.container <- entity
 		return nil
 	} else if casResult == 0 {
@@ -128,7 +129,8 @@ func (pool *myPool) compareAndSetForIDContainer(entityId uint32, oldValue bool, 
 	if !ok {
 		return -1
 	}
-	if v != newValue {
+	//比较值oldvalue
+	if v != oldValue {
 		return 0
 	}
 	pool.IDContainer[entityId] = newValue
@@ -140,5 +142,6 @@ func (pool *myPool) Total() uint32 {
 }
 
 func (pool *myPool) Used() uint32 {
+	//总量 - 池内剩余实体 = 使用的实体
 	return pool.totla - uint32(len(pool.container))
 }

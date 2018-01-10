@@ -40,21 +40,22 @@ func generateAnalyzerPool(poolSize uint32) (analy.AnalyzerPool, error) {
 		poolSize,
 		func() analy.Analyzer {
 			return analy.NewAnalyzer()
-		},
-	)
+		})
 	if err != nil {
 		return nil, err
 	}
 	return analyzer, nil
 }
 
+//初始化网页下载器池
 func generatePageDownloaderPool(poolSize uint32, client GenHttpClient) (download.PageDownloaderPool, error) {
 	downloader, err := download.NewPageDownloaderPool(
 		poolSize,
+		//download.NewPageDownloader(client())返回一个网页下载器(实体)
+		//通过实体初始化网页下载器池
 		func() download.PageDownloader {
 			return download.NewPageDownloader(client())
-		},
-	)
+		})
 	if err != nil {
 		return nil, err
 	}
