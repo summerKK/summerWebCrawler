@@ -118,13 +118,14 @@ func recordSummary(scheduler sched.Scheduler, detailSummary bool, record Record,
 				return
 			default:
 			}
-			//获取摘要信息的各组成部分
+			//获取摘要信息的各组成部分,获取当前goruntine个数
 			currNumGoroutine := runtime.NumGoroutine()
 			//当前调度器的简要信息
 			currSchedSummary := scheduler.Summary(" ")
 
 			//比对前后两份摘要信息的一致性,只有不一致时才会予以记录
 			if currNumGoroutine != prevNumGoroutine ||
+			//对比简要信息,如果不一样就通过record函数进行记录
 				!currSchedSummary.Same(prevSchedSummary) {
 				schedulerSummaryStr := func() string {
 					if detailSummary {
@@ -150,12 +151,21 @@ func recordSummary(scheduler sched.Scheduler, detailSummary bool, record Record,
 	}()
 }
 
-func checkStatus(scheduler sched.Scheduler, intervalNs time.Duration, maxIdleCount uint, autoStop bool, checkCountChan chan<- uint64, record Record, stopNotifier chan<- byte) {
+func checkStatus(scheduler sched.Scheduler,
+	intervalNs time.Duration,
+	maxIdleCount uint,
+	autoStop bool,
+	checkCountChan chan<- uint64,
+	record Record,
+	stopNotifier chan<- byte) {
+
 	var checkCount uint64
 	go func() {
 		defer func() {
 			stopNotifier <- 1
 			stopNotifier <- 2
+			//程序停止的时候会往checkCountChan发数据.主goruntine会收到数据然后停止
+			checkCountChan <- checkCount
 		}()
 
 		//等待调度器开启
@@ -168,8 +178,10 @@ func checkStatus(scheduler sched.Scheduler, intervalNs time.Duration, maxIdleCou
 			if scheduler.Idle() {
 				idleCount++
 				if idleCount == 1 {
+					//获取第一次空闲的时间
 					firstIdleTime = time.Now()
 				}
+				//空闲统计次数如果大于设定值就直接调用schedule停止程序
 				if idleCount >= maxIdleCount {
 					msg := fmt.Sprintf(msgReachMaxIdleCount, time.Since(firstIdleTime).String())
 					record(0, msg)
@@ -185,19 +197,29 @@ func checkStatus(scheduler sched.Scheduler, intervalNs time.Duration, maxIdleCou
 							msg := fmt.Sprintf(msgStopScheduler, result)
 							record(0, msg)
 						}
+						//结束for循环,触发defer checkCountChan <- checkCount
+						//主goruntine. <-checkCountChan 阻塞解除,结束程序
 						break
 					} else {
+						//这里统计idleCount是连续统计的次数
+						//比如idleCOunt = 800的时候scheduler.Idle() 返回false(程序运行)
+						//这里就不是连续次数,idleCount清零.重新统计
 						if idleCount > 0 {
 							idleCount = 0
 						}
 					}
 				}
 			} else {
+				//这里统计idleCount是连续统计的次数
+				//比如idleCOunt = 800的时候scheduler.Idle() 返回false(程序运行)
+				//这里就不是连续次数,idleCount清零.重新统计
 				if idleCount > 0 {
 					idleCount = 0
 				}
 			}
+			//统计次数
 			checkCount++
+			//检查间隔时间
 			time.Sleep(intervalNs)
 		}
 	}()

@@ -53,6 +53,7 @@ func NewSchedSummary(sched *myScheduler, prefix string) SchedSummary {
 	if sched == nil {
 		return nil
 	}
+
 	urlCount := len(sched.urlMap)
 	var urlDetail string
 	if urlCount > 0 {
@@ -71,19 +72,33 @@ func NewSchedSummary(sched *myScheduler, prefix string) SchedSummary {
 
 	return &mySchedSummary{
 		prefix:              prefix,
+		//当前调度器的运行状态
 		running:             sched.running,
+		//池的尺寸信息
 		poolSizeArgs:        sched.poolSizeArgs,
+		//channel的长度参数
 		channelArgs:         sched.channelArgs,
+		//爬取网站深度
 		crawlDepth:          sched.crawlDepth,
+		//获取各个channel的使用状态
 		chanmanSummary:      sched.chanman.Summary(),
+		//获取缓存的使用情况
 		reqCacheSummary:     sched.reqCache.summary(),
+		//网页下载器池的使用状况
 		dlPoolLen:           sched.dlPool.Used(),
+		//网页下载器池的长度
 		dlPoolCap:           sched.dlPool.Total(),
+		//分析器池的使用状况
 		analyzerPoolLen:     sched.analyzerPool.Used(),
+		//分析器池的长度
 		analyzerPoolCap:     sched.analyzerPool.Total(),
+		//条目处理管道的简要信息
 		itemPipelineSummary: sched.itemPipeline.Summary(),
+		//已请求的url数量
 		urlCount:            urlCount,
+		//请求的url的详情
 		urlDetail:           urlDetail,
+		//获取运行状态
 		stopSignSummary:     sched.stopSign.Summary(),
 	}
 }
@@ -137,10 +152,12 @@ func (ss *mySchedSummary) Same(other SchedSummary) bool {
 	if other == nil {
 		return false
 	}
+	//转换为struct然后做对比
 	otherSs, ok := interface{}(other).(*mySchedSummary)
 	if !ok {
 		return false
 	}
+	//对比之前的简要信息和现在的简要信息.如果发现有任何一项发生变化就上报
 	if ss.running != otherSs.running ||
 		ss.poolSizeArgs.String() != otherSs.poolSizeArgs.String() ||
 		ss.channelArgs.String() != otherSs.channelArgs.String() ||

@@ -29,7 +29,8 @@ func main() {
 	//准备监控参数
 	intervalNs := 10 * time.Millisecond
 	maxIdleCount := uint(1000)
-	//开始监控
+	//开始监控.包括输出错误信息,summary信息.
+	//监控maxIdleCount是否到达最大值
 	checkCountChan := tool.Monitoring(
 		scheduler,
 		intervalNs,
@@ -42,11 +43,17 @@ func main() {
 	channelArgs := base.NewChannelArgs(10, 10, 10, 10)
 	poolBaseArgs := base.NewPoolBaseArgs(3, 3)
 	crawlDepth := uint32(1)
+	//获取客户端
 	httpClientGenerator := genHttpClient
+	//解析函数,爬取到内容的时候应该怎么样解析
 	respParses := genResponseParsers()
+	//拿到条目后应该怎样处理.(可以存数据库、csv...)
 	itemProcessors := genItemProcessors()
+	//爬取页面
 	startUrl := "http://www.sogou.com"
+	//第一次请求返回的响应
 	firstHttpReq, err := http.NewRequest("GET", startUrl, nil)
+	//判断请求是否失败
 	if err != nil {
 		logger.Errorln(err)
 		return
@@ -62,7 +69,8 @@ func main() {
 		itemProcessors,
 		firstHttpReq)
 
-	//等待监控结束
+	//阻塞程序,防止程序过早结束
+	//如果checkCountChan接收到值代表程序已经结束.
 	<-checkCountChan
 }
 
@@ -169,7 +177,7 @@ func parseForATag(httpResp *http.Response, respDepth uint32) ([]base.Data, []err
 }
 
 func record(level byte, content string) {
-	if content == ""{
+	if content == "" {
 		return
 	}
 	switch level {
