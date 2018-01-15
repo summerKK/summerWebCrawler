@@ -29,15 +29,6 @@ func main() {
 	//准备监控参数
 	intervalNs := 10 * time.Millisecond
 	maxIdleCount := uint(1000)
-	//开始监控.包括输出错误信息,summary信息.
-	//监控maxIdleCount是否到达最大值
-	checkCountChan := tool.Monitoring(
-		scheduler,
-		intervalNs,
-		maxIdleCount,
-		true,
-		false,
-		record)
 
 	//准备启动参数
 	channelArgs := base.NewChannelArgs(10, 10, 10, 10)
@@ -68,6 +59,16 @@ func main() {
 		respParses,
 		itemProcessors,
 		firstHttpReq)
+
+	//开始监控.包括输出错误信息,summary信息.
+	//监控maxIdleCount是否到达最大值
+	checkCountChan := tool.Monitoring(
+		scheduler,
+		intervalNs,
+		maxIdleCount,
+		true,
+		false,
+		record)
 
 	//阻塞程序,防止程序过早结束
 	//如果checkCountChan接收到值代表程序已经结束.
