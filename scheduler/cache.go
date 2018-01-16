@@ -50,6 +50,7 @@ func (reqcache *reqCacheBySlice) put(req *base.Request) bool {
 	if req == nil {
 		return false
 	}
+	//代表请求状态0代表初始化,1代表关闭
 	if reqcache.status == 1 {
 		return false
 	}

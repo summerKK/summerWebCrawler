@@ -81,22 +81,25 @@ func (analyzer *myAnalyzer) Analyze(respParsers []ParseResponse, resp base.Respo
 		err := errors.New("The response parser is invalid")
 		return nil, []error{err}
 	}
+	//响应
 	httpResp := resp.HttpResp()
 	if httpResp == nil {
 		err := errors.New("The http response is invalid!")
 		return nil, []error{err}
 	}
+	//获取响应的url
 	var reqUrl *url.URL = httpResp.Request.URL
 	logger.Infof("Parse the response (reqUrl=%s)...\n", reqUrl)
-
+	//获取爬取深度
 	respDepth := resp.Depth()
-
+	//respParsers是一个slice[],里面放的是解析函数
 	for i, respParser := range respParsers {
 		if respParser == nil {
 			err := errors.New(fmt.Sprintf("The document parser [%d] is invalid!", i))
 			errorList = append(errorList, err)
 			continue
 		}
+		//通过解析函数解析出想要的数据
 		pDataList, pErrorList := respParser(httpResp, respDepth)
 
 		if pDataList != nil {

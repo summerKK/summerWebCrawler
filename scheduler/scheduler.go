@@ -54,7 +54,7 @@ type myScheduler struct {
 	poolSizeArgs base.PoolBaseArgs
 	//通道的长度(也即容量)
 	channelArgs base.ChannelArgs
-	//爬取的最大深度,首次氢气的深度为0
+	//爬取的最大深度,首次请求的深度为0
 	crawlDepth uint32
 	//主域名
 	primaryDomain string
@@ -156,24 +156,32 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 	if itemProcessors == nil {
 		return errors.New("The item processor list is invalid!")
 	}
+	//itemProcessors是个slice.还要判断他的值是否是nil
 	for i, ip := range itemProcessors {
 		if ip == nil {
 			return errors.New(fmt.Sprintf("The %dth item processor is invalid!", i))
 		}
 	}
+	//条目处理管道
 	scheduler.itemPipeline = generateItemPipeline(itemProcessors)
 
 	//初始化停止信号
+	//如果停止信号还未初始化
 	if scheduler.stopSign == nil {
 		scheduler.stopSign = middle.NewStopSign()
 	} else {
+		//重置停止信号
 		scheduler.stopSign.Reset()
 	}
 
+	//初始化缓存
 	scheduler.reqCache = NewRequestCache()
+	//处理过的url(避免重复处理)
 	scheduler.urlMap = make(map[string]bool)
 
+	//开始下载
 	scheduler.startDownloading()
+	//激活分析器(从respChan管道拿去数据然后进行分析)
 	scheduler.activateAnalyzers(respParsers)
 	scheduler.openItemPipeline()
 	scheduler.schedule(10 * time.Millisecond)
@@ -197,10 +205,14 @@ func (scheduler *myScheduler) Start(channelArgs base.ChannelArgs,
 func (scheduler *myScheduler) startDownloading() {
 	go func() {
 		for {
+			//从缓存中拿取一条然后处理
+			//因为页面的分析能力大于下载能力.所以先把请求缓存在channel.
 			req, ok := <-scheduler.getReqChan()
+			//管道关闭
 			if !ok {
 				break
 			}
+			//下载内容
 			go scheduler.download(req)
 		}
 	}()
@@ -219,6 +231,7 @@ func (scheduler *myScheduler) getReqChan() chan base.Request {
 func (scheduler *myScheduler) activateAnalyzers(respParsers []analy.ParseResponse) {
 	go func() {
 		for {
+			//从响应channel拿出数据分析
 			resp, ok := <-scheduler.getRespChan()
 			if !ok {
 				break
@@ -335,7 +348,7 @@ func (scheduler *myScheduler) sendItem(item base.Item, code string) bool {
 	return true
 }
 
-func (scheduler *myScheduler) analyze(responses []analy.ParseResponse, response base.Response) {
+func (scheduler *myScheduler) analyze(parsers []analy.ParseResponse, response base.Response) {
 	defer func() {
 		if p := recover(); p != nil {
 			errMsg := fmt.Sprintf("Fatal Analysis Error:%s\n", p)
@@ -350,14 +363,17 @@ func (scheduler *myScheduler) analyze(responses []analy.ParseResponse, response 
 		return
 	}
 	defer func() {
+		//放入分析池
 		err := scheduler.analyzerPool.Return(analyzer)
 		if err != nil {
 			errMsg := fmt.Sprintf("Analyzer pool error:%s\n", err)
 			scheduler.sendError(errors.New(errMsg), SCHEDULER_CODE)
 		}
 	}()
+	//生成标识码
 	code := generateCode(ANALYZER_CODE, analyzer.Id())
-	dataList, errs := analyzer.Analyze(responses, response)
+	//从response响应中通过parsers分析出数据
+	dataList, errs := analyzer.Analyze(parsers, response)
 	if dataList != nil {
 		for _, data := range dataList {
 			if data == nil {
@@ -413,7 +429,9 @@ func (scheduler *myScheduler) saveReqToCache(request base.Request, code string) 
 		scheduler.stopSign.Deal(code)
 		return false
 	}
+	//请求放入缓存中
 	scheduler.reqCache.put(&request)
+	//标记url已经爬取过
 	scheduler.urlMap[reqUrl.String()] = true
 	return true
 }
@@ -421,8 +439,13 @@ func (scheduler *myScheduler) saveReqToCache(request base.Request, code string) 
 //打开条目处理管道
 func (scheduler *myScheduler) openItemPipeline() {
 	go func() {
+		//设置快速失败
+		//FailFast 方法会返回一个布尔值.该值标识当前的条目处理管道是否是快速失败的
+		//快速失败:只要对某个条目的处理流程在某一个步骤上出错
+		//那么条目处理管道就会忽略掉后续的所有处理步骤并报告错误
 		scheduler.itemPipeline.SetFailFast(true)
 		code := ITEMPIPELINE_CODE
+		//从条目管道取出条目
 		for item := range scheduler.getItemChan() {
 			go func(item base.Item) {
 				defer func() {
