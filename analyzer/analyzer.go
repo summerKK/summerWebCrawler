@@ -36,6 +36,7 @@ var (
 	logger logging.Logger = base.NewLogger()
 )
 
+//生成解析器的id
 func genAnalyzerID() uint32 {
 	return analyzerIdGenerator.GetUint32()
 }
@@ -52,12 +53,17 @@ func appendDataList(dataList []base.Data, data base.Data, respDepth uint32) []ba
 	if data == nil {
 		return dataList
 	}
+	//断言当前data是否是(*base.Request).
+	//*base.Request实现了 Vaildate() 方法
 	req, ok := data.(*base.Request)
+	//如果不是*base.request类型直接加入dataList
 	if !ok {
 		return append(dataList, data)
 	}
 	newDepth := respDepth + 1
+	//新的请求
 	if req.Depth() != newDepth {
+		//创建新的请求
 		req = base.NewRequest(req.HttpReq(), newDepth)
 	}
 	return append(dataList, req)
@@ -77,11 +83,12 @@ func (analyzer *myAnalyzer) Id() uint32 {
 }
 
 func (analyzer *myAnalyzer) Analyze(respParsers []ParseResponse, resp base.Response) (dataList []base.Data, errorList []error) {
+	//解析函数不能为nil
 	if respParsers == nil {
 		err := errors.New("The response parser is invalid")
 		return nil, []error{err}
 	}
-	//响应
+	//获取响应结果
 	httpResp := resp.HttpResp()
 	if httpResp == nil {
 		err := errors.New("The http response is invalid!")
@@ -99,11 +106,14 @@ func (analyzer *myAnalyzer) Analyze(respParsers []ParseResponse, resp base.Respo
 			errorList = append(errorList, err)
 			continue
 		}
+
 		//通过解析函数解析出想要的数据
 		pDataList, pErrorList := respParser(httpResp, respDepth)
 
 		if pDataList != nil {
+			//把解析的数据加入到dataList列表
 			for _, pData := range pDataList {
+				//appendDataList()会根据数据类型进行创建新的请求或者直接加入到DataList列表
 				dataList = appendDataList(dataList, pData, respDepth)
 			}
 		}
