@@ -57,6 +57,7 @@ func (dlPool *myDownloaderPool) Take() (PageDownloader, error) {
 		return nil, err
 	}
 	//转换实体格式(存入的实体本来就是pageDownloader类型,只是实现了ID()方法.也是Entity类型)
+	//类型断言,转换entity为PageDownloader
 	dl, ok := entity.(PageDownloader)
 	if !ok {
 		errMsg := fmt.Sprintf("The type of entity is not %s\n", dlPool.etype)

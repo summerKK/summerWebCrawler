@@ -49,9 +49,11 @@ func (dl *myPageDownloader) Id() uint32 {
 
 func (dl *myPageDownloader) Download(req base.Request) (*base.Response, error) {
 	httpReq := req.HttpReq()
+	//获取响应
 	httpResp, err := dl.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
+	//返回一个响应
 	return base.NewResponse(httpResp, req.Depth()), nil
 }

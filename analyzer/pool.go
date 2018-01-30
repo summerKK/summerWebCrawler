@@ -50,6 +50,7 @@ func NewAnalyzerPool(total uint32, gen GenAnalyzer) (AnalyzerPool, error) {
 }
 
 func (maPool *myAnalyzerPool) Take() (Analyzer, error) {
+	//从池中取出一个资源
 	entity, err := maPool.pool.Take()
 	if err != nil {
 		return nil, err
@@ -66,13 +67,16 @@ func (maPool *myAnalyzerPool) Take() (Analyzer, error) {
 }
 
 func (maPool *myAnalyzerPool) Return(ma Analyzer) error {
+	//把实体放回池中
 	return maPool.pool.Return(ma)
 }
 
 func (maPool *myAnalyzerPool) Total() uint32 {
+	//池的总容量
 	return maPool.pool.Total()
 }
 
 func (maPool *myAnalyzerPool) Used() uint32 {
+	//实体池中已经被使用的实体的数量
 	return maPool.pool.Used()
 }

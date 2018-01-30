@@ -55,12 +55,14 @@ func NewPool(total uint32, entityType reflect.Type, genEntity func() Entity) (Po
 	container := make(chan Entity, size)
 	idContainer := make(map[uint32]bool)
 	for i := 0; i < size; i++ {
+		//生成一个实体
 		newEntity := genEntity()
-		//判断实体生成的类型是否合法
+		//判断实体生成的类型是否和预期的一致
 		if entityType != reflect.TypeOf(newEntity) {
 			errMsg := fmt.Sprintf("The type of result of function genEntity() is not %s!\n", entityType)
 			return nil, errors.New(errMsg)
 		}
+		//把实体放入资源池
 		container <- newEntity
 		//记录实体Id的容器(实体放回资源池的时候用来辨别是否是资源池生成的实体)
 		idContainer[newEntity.Id()] = true
@@ -79,7 +81,9 @@ func NewPool(total uint32, entityType reflect.Type, genEntity func() Entity) (Po
 
 func (pool *myPool) Take() (Entity, error) {
 	//从实体容器返回一个实体
+	//channel是并发安全的,不需要加锁
 	entity, ok := <-pool.container
+	//资源池被关闭
 	if !ok {
 		return nil, errors.New("The inner container is invalid!")
 	}
@@ -129,10 +133,12 @@ func (pool *myPool) compareAndSetForIDContainer(entityId uint32, oldValue bool, 
 	if !ok {
 		return -1
 	}
-	//比较值oldvalue
+	//取出一个值得时候 IDContainer 的对应map值会变为false
+	//这里对比池内的值和预期值是否一致
 	if v != oldValue {
 		return 0
 	}
+
 	pool.IDContainer[entityId] = newValue
 	return 1
 }

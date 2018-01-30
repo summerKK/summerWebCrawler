@@ -50,6 +50,8 @@ func (req *Request) Valid() bool {
 	return req.httpReq != nil && req.httpReq.URL != nil
 }
 
+
+
 //获取http响应
 func (resp *Response) HttpResp() *http.Response {
 	return resp.httpResp
